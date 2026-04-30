@@ -6,19 +6,19 @@ from scipy import stats
 # Load read counts data
 cnts = pd.read_csv('data-work/read-counts.txt', sep='\t', comment='#', index_col=0)
 
-# Define BAM columns
-bam_cols = ['data-work/CLIP-35L33G.bam', 'data-work/RNA-control.bam',
-            'data-work/RNA-siLin28a.bam', 'data-work/RNA-siLuc.bam',
-            'data-work/RPF-siLin28a.bam', 'data-work/RPF-siLuc.bam']
-
-# Exclude genes with 0 expression in all BAM files
-cnts['total_expr'] = cnts[bam_cols].sum(axis=1)
-cnts = cnts[cnts['total_expr'] > 0]
-print(f"Genes after filtering zero expression: {len(cnts)}")
-
 # Calculate metrics
 cnts['clip_enrichment'] = cnts['data-work/CLIP-35L33G.bam'] / cnts['data-work/RNA-control.bam']
 cnts['rden_change'] = (cnts['data-work/RPF-siLin28a.bam'] / cnts['data-work/RNA-siLin28a.bam']) / (cnts['data-work/RPF-siLuc.bam'] / cnts['data-work/RNA-siLuc.bam'])
+
+# Filter: exclude transcripts with low read counts in RNA-seq (<30 raw reads)
+rna_cols = ['data-work/RNA-control.bam', 'data-work/RNA-siLin28a.bam', 'data-work/RNA-siLuc.bam']
+cnts['rna_total'] = cnts[rna_cols].sum(axis=1)
+cnts = cnts[cnts['rna_total'] >= 30]
+print(f"After RNA-seq filter (>=30 reads): {len(cnts)}")
+
+# Filter: exclude transcripts with low ribosome footprints (<80 raw footprint tags in siLuc)
+cnts = cnts[cnts['data-work/RPF-siLuc.bam'] >= 80]
+print(f"After RPF filter (>=80 in siLuc): {len(cnts)}")
 
 # Filter out zeros and infinities for correlation analysis
 valid_data = cnts[(cnts['clip_enrichment'] > 0) & (cnts['rden_change'] > 0)].copy()
