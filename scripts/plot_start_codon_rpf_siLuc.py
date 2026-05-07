@@ -43,18 +43,9 @@ def load_counts(path: Path) -> pd.DataFrame:
     )
 
 
-def compute_relative_position(df: pd.DataFrame) -> pd.Series:
-    # For plus-strand transcripts, 5' end is the read_start position.
-    # For minus-strand transcripts, 5' end is the read_end position.
-    read_5p = df['read_start'].where(df['strand'] == '+', df['read_end'])
-    rel = read_5p - df['start_codon']
-    rel = rel.where(df['strand'] == '+', -rel)
-    return rel
-
-
 def summarize_position_counts(df: pd.DataFrame, window: int) -> pd.Series:
     df = df.copy()
-    df['rel_pos'] = compute_relative_position(df)
+    df['rel_pos'] = df['read_start'] - df['start_codon']
     df = df[df['rel_pos'].between(-window, window)]
     summary = df.groupby('rel_pos')['count'].sum().reindex(range(-window, window + 1), fill_value=0)
     return summary
@@ -62,14 +53,14 @@ def summarize_position_counts(df: pd.DataFrame, window: int) -> pd.Series:
 
 def plot_start_codon_density(counts: pd.Series, output_path: Path, title: str) -> None:
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(counts.index, counts.values, width=0.8, color='#1f77b4', edgecolor='black')
+    ax.bar(counts.index, counts.values/1000, width=0.8, color="#4f97ca", edgecolor='black')
 
     ax.axvline(0, color='red', linewidth=1.5, label='start codon')
-    ax.axvspan(-10, 10, color='orange', alpha=0.15)
+    #ax.axvspan(-12, 12, color='orange', alpha=0.15)
 
     ax.set_xlim(counts.index.min() - 1, counts.index.max() + 1)
-    ax.set_xlabel('Relative position to start codon (5\'-end of reads)')
-    ax.set_ylabel('Raw count')
+    ax.set_xlabel('Relative position to start codon of 5\'-end of reads')
+    ax.set_ylabel('Raw count (x1000)')
     ax.set_title(title)
     ax.grid(axis='y', linestyle=':', alpha=0.6)
     ax.legend(loc='upper right')
